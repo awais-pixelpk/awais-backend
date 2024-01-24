@@ -16,21 +16,30 @@ const registerUser = asynchandler(async (req, res) => {
   // return res
 
   const { fullname, username, email, password } = req.body;
-  console.log("email", email);
+  //console.log("email", email);
 
   if (
     [fullname, username, email, password].some((field) => field?.trim() === "")
   ) {
     throw new ApiError(400, "All field are required");
   }
-  const existedUser = User.findOne({
+  const existedUser = await User.findOne({
     $or: [{ username }, { email }],
   });
   if (existedUser) {
     throw new ApiError(409, "User with email or name already exist");
   }
   const avatarLocalPath = req.files?.avatar[0].path;
-  const coverImageLocalPath = req.files?.avatar[0].path;
+  //const coverImageLocalPath = req.files?.coverImage[0].path;
+  let coverImageLocalPath;
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  ) {
+    coverImageLocalPath = req.files.coverImage[0].path;
+  }
+
   if (!avatarLocalPath) {
     throw new ApiError(400, "avatar field is required");
   }
@@ -40,7 +49,7 @@ const registerUser = asynchandler(async (req, res) => {
   if (!avatar) {
     throw new ApiError(400, "avatar field is required");
   }
-  User.create({
+  const createdUser = await User.create({
     fullname,
     avatar: avatar.url,
     coverImage: coverImage?.url || "",
@@ -48,13 +57,22 @@ const registerUser = asynchandler(async (req, res) => {
     password,
     username: username.toLowerCase(),
   });
-  const createdUser = User.findById(User._id).select("-password -refreshToken");
+
+  /*const createdUser = await User.findById(User._id).select(
+    "-password -refreshToken"
+  );*/
+
   if (!createdUser) {
     throw new ApiError(500, "something went wrong while registering the user");
   }
+  const {
+    password: _,
+    refreshToken: __,
+    ...userDetails
+  } = createdUser.toObject();
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "user register successfully"));
+    .json(new ApiResponse(200, userDetails, "user register successfully"));
 });
 
 export { registerUser };
