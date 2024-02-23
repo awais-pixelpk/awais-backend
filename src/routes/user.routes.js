@@ -14,8 +14,54 @@ import {
 } from "../controllers/user.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { validateUser } from "../middleware/validateUser.middleware.js";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: API endpoints for user management
+ */
+
+/**
+ * @swagger
+ * /api/v1/users/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Users]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *                 description: The full name of the user.
+ *               username:
+ *                 type: string
+ *                 description: The username of the user.
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email address of the user.
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: The password of the user.
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *               coverImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: User registered successfully
+ *       400:
+ *         description: Invalid request
+ */
 router.route("/register").post(
   upload.fields([
     {
@@ -28,9 +74,12 @@ router.route("/register").post(
       maxCount: 1,
     },
   ]),
-
+  validateUser,
   registerUser
 );
+/**
+ *
+ */
 router.route("/login").post(loginUser);
 
 //secured route

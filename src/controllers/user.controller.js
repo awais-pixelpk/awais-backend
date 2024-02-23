@@ -5,23 +5,7 @@ import { uploadOncloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-
-const generateAccessAndRefreshToken = async (userId) => {
-  try {
-    const user = await User.findById(userId);
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
-
-    return { accessToken, refreshToken };
-  } catch (error) {
-    throw new ApiError(
-      500,
-      " something went wrong while generating access and refresh token"
-    );
-  }
-};
+import { generateAccessAndRefreshToken } from "../utils/tokens.js";
 
 const registerUser = asynchandler(async (req, res) => {
   // get user details for frontend
@@ -61,24 +45,40 @@ const registerUser = asynchandler(async (req, res) => {
   if (!avatarLocalPath) {
     throw new ApiError(400, "avatar field is required");
   }
-  const avatar = await uploadOncloudinary(avatarLocalPath);
-  const coverImage = await uploadOncloudinary(coverImageLocalPath);
 
-  if (!avatar) {
-    throw new ApiError(400, "avatar field is required");
+  /*const avatar = await uploadOncloudinary(avatarLocalPath);
+   const coverImage = await uploadOncloudinary(coverImageLocalPath);
+   if (!avatar) {
+     throw new ApiError(400, "avatar field is required");
+   }*/
+
+  // using promise uplood file parallel
+
+  const uploadAvatarPromise = uploadOncloudinary(avatarLocalPath);
+  const uploadCoverImagePromise = coverImageLocalPath
+    ? uploadOncloudinary(coverImageLocalPath)
+    : Promise.resolve(null);
+
+  const [avatarResult, coverImageResult] = await Promise.all([
+    uploadAvatarPromise,
+    uploadCoverImagePromise,
+  ]);
+
+  if (!avatarResult) {
+    throw new ApiError(400, "Failed to upload avatar");
   }
   const createdUser = await User.create({
     fullname,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
+    avatar: avatarResult.url,
+    coverImage: coverImageResult ? coverImageResult.url : "",
     email,
     password,
     username: username.toLowerCase(),
   });
 
   /*const createdUser = await User.findById(User._id).select(
-    "-password -refreshToken"
-  );*/
+     "-password -refreshToken"
+   );*/
 
   if (!createdUser) {
     throw new ApiError(500, "something went wrong while registering the user");
